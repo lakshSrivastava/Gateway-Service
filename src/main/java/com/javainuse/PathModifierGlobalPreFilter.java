@@ -9,11 +9,14 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.codec.HttpMessageReader;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestTemplate;
 import org.springframework.web.reactive.function.server.HandlerStrategies;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
+import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Component
 public class PathModifierGlobalPreFilter implements GlobalFilter, Ordered {
@@ -25,8 +28,8 @@ public class PathModifierGlobalPreFilter implements GlobalFilter, Ordered {
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
-        //path update logic localhost:3232/iss/users/{profileId}/* -> localhost:3232/iss/*
-        logger.info("Global Pre Filter executed");
+        //path update logic localhost:3232/iss/users/{profileId}/* -> localhost:3232/iss/users/personId
+        logger.info("path update Pre Filter executed");
         String profileId = null;
         String path = exchange.getRequest().getPath().value();
         String[] arr = path.split("/");
@@ -34,12 +37,11 @@ public class PathModifierGlobalPreFilter implements GlobalFilter, Ordered {
             profileId = arr[3];
         }
         if(profileId != null) {
+            String personId = getPersonIdFromProfile(profileId);
+            arr[3] = personId;
             String newPath = "";
-            for(int i=1 ; i< arr.length; i++) {
-                if(i==2 || i==3) {
-                    continue;
-                }
-                newPath = newPath + "/" + arr[i];
+            for(int j = 1; j < arr.length;j++) {
+                newPath = newPath + "/" +  arr[j];
             }
             ServerHttpRequest httpRequest = exchange.getRequest().mutate().path(newPath).build();
             ServerWebExchange updatedExchange = exchange.mutate()
@@ -48,6 +50,13 @@ public class PathModifierGlobalPreFilter implements GlobalFilter, Ordered {
             return chain.filter(updatedExchange);
         }
         return chain.filter(exchange);
+    }
+
+    private String getPersonIdFromProfile(String profileId) {
+        final String uri = "http://localhost:8081/personId/"+profileId;
+        RestTemplate restTemplate = new RestTemplate();
+        String result = restTemplate.getForObject(uri, String.class);
+        return result;
     }
 
     @Override
