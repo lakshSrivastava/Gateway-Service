@@ -1,4 +1,4 @@
-package com.javainuse;
+package com.javainuse.util;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
